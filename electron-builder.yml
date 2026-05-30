@@ -1,0 +1,34 @@
+appId: com.clipboard-history.app
+productName: Clipboard History
+copyright: Copyright 2026
+
+directories:
+  output: dist
+  buildResources: assets
+
+files:
+  - src/**/*
+  - assets/**/*
+  - package.json
+  - node_modules/**/*
+  - "!node_modules/**/*.{md,ts,map,license}"
+  - "!node_modules/**/docs/**"
+  - "!node_modules/**/test/**"
+
+asar: true
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: assets/icon.png
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Clipboard History
+  deleteAppDataOnUninstall: false
