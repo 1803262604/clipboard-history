@@ -1,12 +1,13 @@
 {
   "name": "clipboard-history",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Windows 11 剪贴板历史管理工具 - 自动记录文字和图片，支持搜索、置顶、删除",
   "main": "src/main/main.js",
   "scripts": {
     "start": "electron .",
     "build": "electron-builder --win",
-    "build:dir": "electron-builder --win --dir"
+    "build:dir": "electron-builder --win --dir",
+    "test:ocr": "electron scripts/ocr-smoke-test.js"
   },
   "keywords": [
     "clipboard",
@@ -21,6 +22,9 @@
     "electron-builder": "^26.8.1"
   },
   "dependencies": {
-    "sql.js": "^1.14.1"
+    "@tesseract.js-data/chi_sim": "1.0.0",
+    "@tesseract.js-data/eng": "1.0.0",
+    "sql.js": "^1.14.1",
+    "tesseract.js": "7.0.0"
   }
 }

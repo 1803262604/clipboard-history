@@ -137,6 +137,7 @@ INSERT OR IGNORE INTO settings (key, value) VALUES ('max_items', '1000');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('hotkey', 'Ctrl+Shift+V');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('auto_start', 'true');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('theme', 'system');
+INSERT OR IGNORE INTO settings (key, value) VALUES ('image_layout', 'list');
 ```
 
 ### 设置项说明
@@ -149,3 +150,4 @@ INSERT OR IGNORE INTO settings (key, value) VALUES ('theme', 'system');
 | `auto_start` | `true` | 是否开机自启 |
 | `theme` | `system` | 主题（light/dark/system） |
 | `always_on_top` | `false` | 窗口是否置顶 |
+| `image_layout` | `list` | 图片视图排布（list/grid） |

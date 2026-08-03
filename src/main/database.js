@@ -119,6 +119,7 @@ function insertDefaultSettings() {
     always_on_top: 'false',
     translucent_mode: 'false',
     translucent_opacity: '30',
+    image_layout: 'list',
   };
 
   const stmt = db.prepare(
@@ -244,13 +245,19 @@ function updateImageItem(id, imagePath, width, height) {
  * @param {number} offset - 偏移
  * @returns {Array} 条目列表
  */
-function getItems(limit = 20, offset = 0) {
+function getItems(limit = 20, offset = 0, type = 'all') {
+  const itemType = normalizeItemType(type);
+  const whereClause = itemType ? 'WHERE type = ?' : '';
+  const params = itemType
+    ? [itemType, limit, offset]
+    : [limit, offset];
   const stmt = db.prepare(`
     SELECT * FROM clipboard_items
+    ${whereClause}
     ORDER BY is_pinned DESC, last_copied_at DESC
     LIMIT ? OFFSET ?
   `);
-  stmt.bind([limit, offset]);
+  stmt.bind(params);
 
   const items = [];
   while (stmt.step()) {
@@ -267,7 +274,9 @@ function getItems(limit = 20, offset = 0) {
  * @param {number} offset - 偏移
  * @returns {Array} 匹配的条目列表
  */
-function searchItems(query, limit = 20, offset = 0) {
+function searchItems(query, limit = 20, offset = 0, type = 'all') {
+  if (normalizeItemType(type) === 'image') return [];
+
   const stmt = db.prepare(`
     SELECT * FROM clipboard_items
     WHERE type = 'text' AND content LIKE ?
@@ -282,6 +291,25 @@ function searchItems(query, limit = 20, offset = 0) {
   }
   stmt.free();
   return items;
+}
+
+/**
+ * 获取搜索结果总数。
+ * @param {string} query - 搜索关键词
+ * @param {string} type - 类型筛选
+ * @returns {number}
+ */
+function getSearchItemCount(query, type = 'all') {
+  if (normalizeItemType(type) === 'image') return 0;
+
+  const stmt = db.prepare(`
+    SELECT COUNT(*) FROM clipboard_items
+    WHERE type = 'text' AND content LIKE ?
+  `);
+  stmt.bind([`%${query}%`]);
+  const count = stmt.step() ? stmt.get()[0] : 0;
+  stmt.free();
+  return count;
 }
 
 /**
@@ -324,6 +352,29 @@ function deleteItem(id) {
 }
 
 /**
+ * 批量删除条目，仅执行一次数据库持久化。
+ * @param {number[]} ids - 条目 ID
+ * @returns {object[]} 被删除的条目
+ */
+function deleteItems(ids) {
+  const uniqueIds = [...new Set(ids)];
+  if (uniqueIds.length === 0) return [];
+
+  const items = getItemsByIds(uniqueIds);
+  if (items.length === 0) return [];
+
+  const itemIds = items.map(item => item.id);
+  const placeholders = itemIds.map(() => '?').join(',');
+  const stmt = db.prepare(
+    `DELETE FROM clipboard_items WHERE id IN (${placeholders})`
+  );
+  stmt.run(itemIds);
+  stmt.free();
+  save();
+  return items;
+}
+
+/**
  * 根据 ID 获取条目
  * @param {number} id
  * @returns {object|null}
@@ -340,12 +391,48 @@ function getItemById(id) {
 }
 
 /**
+ * 根据多个 ID 获取条目。
+ * @param {number[]} ids - 条目 ID
+ * @returns {object[]}
+ */
+function getItemsByIds(ids) {
+  const uniqueIds = [...new Set(ids)];
+  if (uniqueIds.length === 0) return [];
+
+  const placeholders = uniqueIds.map(() => '?').join(',');
+  const stmt = db.prepare(`
+    SELECT * FROM clipboard_items
+    WHERE id IN (${placeholders})
+    ORDER BY last_copied_at DESC
+  `);
+  stmt.bind(uniqueIds);
+
+  const items = [];
+  while (stmt.step()) {
+    items.push(rowToObject(stmt.get()));
+  }
+  stmt.free();
+  return items;
+}
+
+/**
  * 获取条目总数
  * @returns {number}
  */
-function getItemCount() {
-  const result = db.exec('SELECT COUNT(*) FROM clipboard_items');
-  return result[0].values[0][0];
+function getItemCount(type = 'all') {
+  const itemType = normalizeItemType(type);
+  if (!itemType) {
+    const result = db.exec('SELECT COUNT(*) FROM clipboard_items');
+    return result[0].values[0][0];
+  }
+
+  const stmt = db.prepare(
+    'SELECT COUNT(*) FROM clipboard_items WHERE type = ?'
+  );
+  stmt.bind([itemType]);
+  const count = stmt.step() ? stmt.get()[0] : 0;
+  stmt.free();
+  return count;
 }
 
 /**
@@ -459,6 +546,15 @@ function getAllSettings() {
 // ============================================================
 
 /**
+ * 规范化条目类型，all 和未知值都表示不限制类型。
+ * @param {string} type
+ * @returns {string|null}
+ */
+function normalizeItemType(type) {
+  return type === 'text' || type === 'image' ? type : null;
+}
+
+/**
  * 将 sql.js 行数据转为普通对象
  */
 function rowToObject(row) {
@@ -513,9 +609,12 @@ module.exports = {
   updateImageItem,
   getItems,
   searchItems,
+  getSearchItemCount,
   pinItem,
   deleteItem,
+  deleteItems,
   getItemById,
+  getItemsByIds,
   getItemCount,
   cleanupExpired,
   enforceMaxItems,

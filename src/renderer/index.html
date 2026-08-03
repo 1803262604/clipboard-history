@@ -25,14 +25,40 @@
     <button id="settingsBtn" class="settings-btn" title="设置">⚙</button>
   </div>
 
+  <!-- 内容类型筛选 -->
+  <div class="filter-toolbar">
+    <div class="type-filter" role="tablist" aria-label="内容类型">
+      <button class="filter-btn active" data-type="all" role="tab" aria-selected="true">全部</button>
+      <button class="filter-btn" data-type="text" role="tab" aria-selected="false">文字</button>
+      <button class="filter-btn" data-type="image" role="tab" aria-selected="false">图片</button>
+    </div>
+    <label id="imageLayoutControl" class="image-layout-control hidden">
+      <span class="visually-hidden">图片排布</span>
+      <select id="imageLayoutSelect" class="image-layout-select" aria-label="图片排布方式">
+        <option value="list">列表</option>
+        <option value="grid">网格</option>
+      </select>
+    </label>
+    <button id="imageManageBtn" class="manage-btn hidden" title="批量管理图片">☑ 管理</button>
+  </div>
+
+  <!-- 截图库批量操作 -->
+  <div id="batchToolbar" class="batch-toolbar hidden">
+    <button id="selectAllImagesBtn" class="batch-btn">全选已加载</button>
+    <span id="selectedImagesCount" class="selection-count">已选 0 项</span>
+    <span class="batch-spacer"></span>
+    <button id="copySelectedFilesBtn" class="batch-btn primary" disabled>📄 复制为文件</button>
+    <button id="deleteSelectedImagesBtn" class="batch-btn danger" title="删除所选图片" disabled>🗑 删除</button>
+  </div>
+
   <!-- 主内容区 -->
   <div id="mainContent" class="main-content">
 
     <!-- 空状态 -->
     <div id="emptyState" class="empty-state hidden">
       <div class="empty-icon">📋</div>
-      <h2 class="empty-title">暂无剪贴板历史</h2>
-      <p class="empty-subtitle">开始复制文字或截图，内容将自动出现在这里</p>
+      <h2 id="emptyTitle" class="empty-title">暂无剪贴板历史</h2>
+      <p id="emptySubtitle" class="empty-subtitle">开始复制文字或截图，内容将自动出现在这里</p>
     </div>
 
     <!-- 搜索无结果 -->
@@ -74,6 +100,11 @@
     <div class="image-preview-close" id="imagePreviewClose">✕</div>
     <img id="imagePreviewImg" src="" alt="预览" />
     <div class="image-preview-info" id="imagePreviewInfo"></div>
+    <div class="image-preview-actions">
+      <button id="imagePreviewCopy" class="preview-action-btn">📋 复制图片</button>
+      <button id="imagePreviewCopyFile" class="preview-action-btn">📄 复制为文件</button>
+      <button id="imagePreviewOcr" class="preview-action-btn ocr-btn">文 识别并复制</button>
+    </div>
   </div>
 
   <!-- 文字全文弹窗 -->

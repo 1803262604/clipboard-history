@@ -1,6 +1,6 @@
 # 技术选型说明
 
-## 最终选型：Electron + 原生 HTML/CSS/JS + better-sqlite3
+## 最终选型：Electron + 原生 HTML/CSS/JS + sql.js + Tesseract.js
 
 ## 对比分析
 
@@ -30,18 +30,19 @@
 ### 生产依赖
 | 包名 | 版本 | 用途 |
 |------|------|------|
-| `electron` | ^33.0.0 | 应用框架 |
-| `node-clipboard-event` | ^1.2.0 | Windows 原生剪贴板监听 |
+| `electron` | ^33.4.0 | 应用框架与剪贴板轮询 |
 | `better-sqlite3` | ~~^11.0.0~~ | ❌ 需要原生编译，系统 Python 不可用 |
-| `sql.js` | ^1.12.0 | ✅ 纯 WASM SQLite，无需编译，LIKE 搜索 |
+| `sql.js` | ^1.14.1 | ✅ 纯 WASM SQLite，无需编译，LIKE 搜索 |
+| `tesseract.js` | 7.0.0 | 本地 WASM 图片文字识别 |
+| `@tesseract.js-data/chi_sim` | 1.0.0 | 简体中文精简识别模型 |
+| `@tesseract.js-data/eng` | 1.0.0 | 英文精简识别模型 |
 
 ### 开发依赖
 | 包名 | 版本 | 用途 |
 |------|------|------|
-| `electron-builder` | ^25.0.0 | 打包为 Windows 安装程序 |
-| `electron-rebuild` | ^3.0.0 | 重编译原生模块适配 Electron ABI |
+| `electron-builder` | ^26.8.1 | 打包为 Windows 安装程序 |
 
-**依赖数量**：仅 5 个包，有意保持最小化——更少依赖意味着更少的兼容性问题和更小的攻击面。
+OCR 模型随应用安装并在本地执行，不依赖网络服务；打包时仅保留实际使用的精简模型。
 
 ## 环境要求
 

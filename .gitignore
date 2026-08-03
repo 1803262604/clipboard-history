@@ -1,5 +1,7 @@
 node_modules/
 dist/
+/work/
+/outputs/
 *.db
 *.db-journal
 *.db-wal

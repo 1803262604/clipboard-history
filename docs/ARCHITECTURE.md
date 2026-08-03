@@ -13,6 +13,12 @@ Electron 应用由两个主要进程组成：
 │  │ clipboard-   │  │  database.js │  │  image-store  │  │
 │  │ monitor.js   │  │  (SQLite)    │  │  (文件系统)    │  │
 │  └──────┬───────┘  └──────┬───────┘  └───────┬───────┘  │
+│  ┌───────────────┐                                       │
+│  │file-clipboard │  Windows 文件剪贴板                    │
+│  └──────┬────────┘                                       │
+│  ┌───────────────┐                                       │
+│  │  ocr-service  │  本地图片文字识别                      │
+│  └──────┬────────┘                                       │
 │         │                 │                   │         │
 │  ┌──────┴─────────────────┴───────────────────┴───────┐  │
 │  │                  ipc-handlers.js                    │  │
@@ -47,6 +53,8 @@ Electron 应用由两个主要进程组成：
 | `clipboard-monitor.js` | 监听剪贴板变化、读取内容、去重、触发存储 | database.js, image-store.js |
 | `database.js` | SQLite 初始化、所有 CRUD 操作、FTS 搜索、过期清理 | better-sqlite3 |
 | `image-store.js` | 图片文件存取删、目录管理 | fs, path, crypto |
+| `file-clipboard.js` | 将一张或多张历史图片写入 Windows 文件剪贴板 | child_process, PowerShell |
+| `ocr-service.js` | 按需识别单张图片中的中英文文字，空闲后释放 worker | Tesseract.js, 本地语言模型 |
 | `tray.js` | 系统托盘图标、右键菜单、点击事件 | Electron.Tray |
 | `hotkey.js` | 全局快捷键注册/注销 | Electron.globalShortcut |
 | `auto-start.js` | 开机自启开关 | Electron.app |
@@ -57,11 +65,14 @@ Electron 应用由两个主要进程组成：
 
 | 通道名称 | 方向 | 用途 |
 |----------|------|------|
-| `clipboard:getItems` | Renderer → Main | 分页获取历史记录 |
-| `clipboard:search` | Renderer → Main | 全文搜索 |
+| `clipboard:getItems` | Renderer → Main | 按类型分页获取历史记录和总数 |
+| `clipboard:search` | Renderer → Main | 全文搜索并返回准确分页总数 |
 | `clipboard:pin` | Renderer → Main | 切换置顶状态 |
 | `clipboard:delete` | Renderer → Main | 删除条目 |
+| `clipboard:deleteBatch` | Renderer → Main | 批量删除条目并清理图片文件 |
 | `clipboard:copy` | Renderer → Main | 将条目录入系统剪贴板 |
+| `clipboard:copyImageFiles` | Renderer → Main | 将一张或多张图片复制为 Windows 文件 |
+| `clipboard:recognizeImageText` | Renderer → Main | 识别单张图片文字并写入系统剪贴板 |
 | `clipboard:getImage` | Renderer → Main | 获取图片 Base64 数据 |
 | `settings:get` | Renderer → Main | 读取单个设置 |
 | `settings:set` | Renderer → Main | 写入单个设置 |
@@ -73,6 +84,7 @@ Electron 应用由两个主要进程组成：
 | `clipboard:newItem` | Main → Renderer | 新条目通知（实时推送） |
 | `clipboard:itemUpdated` | Main → Renderer | 条目更新通知 |
 | `clipboard:itemDeleted` | Main → Renderer | 条目删除通知 |
+| `clipboard:ocrProgress` | Main → Renderer | 图片文字识别加载与执行进度 |
 
 ## 数据流
 

@@ -6,9 +6,39 @@
 const { ipcMain, clipboard, nativeImage } = require('electron');
 const database = require('./database');
 const imageStore = require('./image-store');
+const fileClipboard = require('./file-clipboard');
+const ocrService = require('./ocr-service');
 
 // 窗口引用
 let mainWindow = null;
+
+const ITEM_TYPES = new Set(['all', 'text', 'image']);
+
+function normalizeType(type) {
+  return ITEM_TYPES.has(type) ? type : 'all';
+}
+
+function normalizePageValue(value, fallback, max) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsed) || parsed < 0) return fallback;
+  return Math.min(parsed, max);
+}
+
+function normalizeItemIds(ids) {
+  if (!Array.isArray(ids)) {
+    throw new Error('条目 ID 必须是数组');
+  }
+
+  const normalized = [...new Set(ids.map(id => Number(id)))]
+    .filter(id => Number.isInteger(id) && id > 0);
+  if (normalized.length === 0) {
+    throw new Error('至少选择一条有效记录');
+  }
+  if (normalized.length > fileClipboard.MAX_FILE_COUNT) {
+    throw new Error(`一次最多处理 ${fileClipboard.MAX_FILE_COUNT} 条记录`);
+  }
+  return normalized;
+}
 
 function setWindow(win) {
   mainWindow = win;
@@ -21,10 +51,13 @@ function registerHandlers() {
 
   // ---- 历史记录 ----
 
-  ipcMain.handle('clipboard:getItems', (_event, limit = 20, offset = 0) => {
+  ipcMain.handle('clipboard:getItems', (_event, limit = 20, offset = 0, type = 'all') => {
     try {
-      const items = database.getItems(limit, offset);
-      const total = database.getItemCount();
+      const safeLimit = normalizePageValue(limit, 20, 100);
+      const safeOffset = normalizePageValue(offset, 0, Number.MAX_SAFE_INTEGER);
+      const safeType = normalizeType(type);
+      const items = database.getItems(safeLimit, safeOffset, safeType);
+      const total = database.getItemCount(safeType);
       return { items, total };
     } catch (err) {
       console.error('[clipboard:getItems] Error:', err.message);
@@ -32,15 +65,25 @@ function registerHandlers() {
     }
   });
 
-  ipcMain.handle('clipboard:search', (_event, query, limit = 20, offset = 0) => {
+  ipcMain.handle('clipboard:search', (_event, query, limit = 20, offset = 0, type = 'all') => {
     try {
-      if (!query || query.trim().length === 0) {
-        return database.getItems(limit, offset);
+      const safeLimit = normalizePageValue(limit, 20, 100);
+      const safeOffset = normalizePageValue(offset, 0, Number.MAX_SAFE_INTEGER);
+      const safeType = normalizeType(type);
+      const safeQuery = typeof query === 'string'
+        ? query.trim().substring(0, 500)
+        : '';
+      if (!safeQuery) {
+        const items = database.getItems(safeLimit, safeOffset, safeType);
+        const total = database.getItemCount(safeType);
+        return { items, total };
       }
-      return database.searchItems(query.trim(), limit, offset);
+      const items = database.searchItems(safeQuery, safeLimit, safeOffset, safeType);
+      const total = database.getSearchItemCount(safeQuery, safeType);
+      return { items, total };
     } catch (err) {
       console.error('[clipboard:search] Error:', err.message);
-      return [];
+      return { items: [], total: 0 };
     }
   });
 
@@ -66,6 +109,22 @@ function registerHandlers() {
     } catch (err) {
       console.error('[clipboard:delete] Error:', err.message);
       return false;
+    }
+  });
+
+  ipcMain.handle('clipboard:deleteBatch', (_event, ids) => {
+    try {
+      const safeIds = normalizeItemIds(ids);
+      const items = database.deleteItems(safeIds);
+      for (const item of items) {
+        if (item.type === 'image' && item.image_path) {
+          imageStore.deleteImage(item.image_path);
+        }
+      }
+      return { deleted: items.length };
+    } catch (err) {
+      console.error('[clipboard:deleteBatch] Error:', err.message);
+      return { deleted: 0, error: err.message };
     }
   });
 
@@ -107,6 +166,73 @@ function registerHandlers() {
     } catch (err) {
       console.error('[clipboard:getImage] Error:', err.message);
       return null;
+    }
+  });
+
+  ipcMain.handle('clipboard:copyImageFiles', async (_event, ids) => {
+    try {
+      const safeIds = normalizeItemIds(ids);
+      const items = database.getItemsByIds(safeIds);
+      if (items.some(item => item.type !== 'image')) {
+        throw new Error('只能将图片记录复制为文件');
+      }
+
+      const filePaths = items.map(item => imageStore.getImagePath(item.image_path));
+      const copied = await fileClipboard.copyFilesToClipboard(filePaths);
+      return { copied };
+    } catch (err) {
+      console.error('[clipboard:copyImageFiles] Error:', err.message);
+      return { copied: 0, error: err.message };
+    }
+  });
+
+  ipcMain.handle('clipboard:recognizeImageText', async (event, id) => {
+    try {
+      const safeId = Number(id);
+      if (!Number.isInteger(safeId) || safeId <= 0) {
+        throw new Error('图片 ID 无效');
+      }
+
+      const item = database.getItemById(safeId);
+      if (!item || item.type !== 'image' || !item.image_path) {
+        throw new Error('未找到图片记录');
+      }
+
+      const imageBuffer = imageStore.loadImage(item.image_path);
+      if (!imageBuffer) {
+        const error = new Error('图片文件不存在');
+        error.userMessage = error.message;
+        throw error;
+      }
+
+      const sender = event.sender;
+      const text = await ocrService.recognizeText(imageBuffer, progress => {
+        try {
+          if (!sender.isDestroyed()) {
+            sender.send('clipboard:ocrProgress', {
+              id: safeId,
+              status: progress.status,
+              progress: progress.progress,
+            });
+          }
+        } catch (progressError) {
+          console.warn('[clipboard:ocrProgress] Error:', progressError.message);
+        }
+      });
+      try {
+        clipboard.writeText(text);
+      } catch (clipboardError) {
+        const error = new Error('文字已识别，但写入剪贴板失败');
+        error.userMessage = error.message;
+        throw error;
+      }
+      return { copied: true, charCount: Array.from(text).length };
+    } catch (err) {
+      console.error('[clipboard:recognizeImageText] Error:', err.message);
+      return {
+        copied: false,
+        error: err.userMessage || '文字识别失败，请重试',
+      };
     }
   });
 

@@ -12,12 +12,12 @@ contextBridge.exposeInMainWorld('clipboardAPI', {
   // ========================================
 
   /** 分页获取历史记录 */
-  getItems: (limit, offset) =>
-    ipcRenderer.invoke('clipboard:getItems', limit, offset),
+  getItems: (limit, offset, type) =>
+    ipcRenderer.invoke('clipboard:getItems', limit, offset, type),
 
   /** 搜索历史记录 */
-  searchItems: (query, limit, offset) =>
-    ipcRenderer.invoke('clipboard:search', query, limit, offset),
+  searchItems: (query, limit, offset, type) =>
+    ipcRenderer.invoke('clipboard:search', query, limit, offset, type),
 
   // ========================================
   //  条目操作
@@ -31,6 +31,10 @@ contextBridge.exposeInMainWorld('clipboardAPI', {
   deleteItem: (id) =>
     ipcRenderer.invoke('clipboard:delete', id),
 
+  /** 批量删除条目 */
+  deleteItems: (ids) =>
+    ipcRenderer.invoke('clipboard:deleteBatch', ids),
+
   /** 将条目录入系统剪贴板 */
   copyToClipboard: (id) =>
     ipcRenderer.invoke('clipboard:copy', id),
@@ -38,6 +42,14 @@ contextBridge.exposeInMainWorld('clipboardAPI', {
   /** 获取图片 Base64 数据（用于显示缩略图） */
   getImageData: (id) =>
     ipcRenderer.invoke('clipboard:getImage', id),
+
+  /** 将一张或多张图片复制为文件 */
+  copyImageFiles: (ids) =>
+    ipcRenderer.invoke('clipboard:copyImageFiles', ids),
+
+  /** 识别一张图片中的文字并复制 */
+  recognizeImageText: (id) =>
+    ipcRenderer.invoke('clipboard:recognizeImageText', id),
 
   /** 获取存储信息 */
   getStorageInfo: () =>
@@ -88,6 +100,11 @@ contextBridge.exposeInMainWorld('clipboardAPI', {
   /** 条目更新通知（去重时移到顶部） */
   onItemUpdated: (callback) => {
     ipcRenderer.on('clipboard:itemUpdated', (_event, id) => callback(id));
+  },
+
+  /** 图片文字识别进度 */
+  onOcrProgress: (callback) => {
+    ipcRenderer.on('clipboard:ocrProgress', (_event, progress) => callback(progress));
   },
 
   /** 条目删除通知 */

@@ -8,21 +8,43 @@ const Components = {
    * 创建单条剪贴板记录卡片
    * @param {Object} item - 数据库条目
    * @param {string} highlightQuery - 搜索关键词（用于高亮）
+   * @param {Object} options - 选择模式配置
    * @returns {HTMLElement}
    */
-  createItemCard(item, highlightQuery) {
+  createItemCard(item, highlightQuery, options = {}) {
     const card = document.createElement('div');
     card.className = 'item-card' + (item.is_pinned ? ' pinned' : '');
     card.dataset.id = item.id;
+
+    if (options.selectionMode) {
+      card.classList.add('selection-mode');
+      card.classList.toggle('selected', Boolean(options.selected));
+      card.appendChild(this._createSelectionControl(Boolean(options.selected)));
+    }
 
     if (item.type === 'image') {
       card.appendChild(this._createThumbnail(item));
     }
 
     card.appendChild(this._createBody(item, highlightQuery));
-    card.appendChild(this._createActions(item));
+    if (!options.selectionMode) {
+      card.appendChild(this._createActions(item));
+    }
 
     return card;
+  },
+
+  _createSelectionControl(selected) {
+    const control = document.createElement('label');
+    control.className = 'selection-control';
+
+    const checkbox = document.createElement('input');
+    checkbox.className = 'selection-checkbox';
+    checkbox.type = 'checkbox';
+    checkbox.checked = selected;
+    checkbox.tabIndex = -1;
+    control.appendChild(checkbox);
+    return control;
   },
 
   _createThumbnail(item) {
@@ -55,9 +77,9 @@ const Components = {
         preview.classList.add('mono');
       }
       // 截断并高亮
-      let text = Utils.truncateText(item.content, 200);
+      const text = Utils.truncateText(item.content, 200);
       if (highlightQuery) {
-        preview.innerHTML = this._highlightText(text, highlightQuery);
+        this._appendHighlightedText(preview, text, highlightQuery);
       } else {
         preview.textContent = text;
       }
@@ -106,12 +128,26 @@ const Components = {
   /**
    * 高亮匹配文本（不区分大小写）
    */
-  _highlightText(text, query) {
-    if (!query) return text;
+  _appendHighlightedText(container, text, query) {
+    if (!query) {
+      container.textContent = text;
+      return;
+    }
+
     // 转义正则特殊字符
     const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp(`(${escaped})`, 'gi');
-    return text.replace(regex, '<mark class="search-highlight">$1</mark>');
+    const queryLower = query.toLocaleLowerCase();
+    for (const part of text.split(regex)) {
+      if (part.toLocaleLowerCase() === queryLower) {
+        const mark = document.createElement('mark');
+        mark.className = 'search-highlight';
+        mark.textContent = part;
+        container.appendChild(mark);
+      } else {
+        container.appendChild(document.createTextNode(part));
+      }
+    }
   },
 
   _metaDot() {
@@ -123,6 +159,28 @@ const Components = {
   _createActions(item) {
     const actions = document.createElement('div');
     actions.className = 'item-actions';
+
+    if (item.type === 'image') {
+      const fileBtn = document.createElement('button');
+      fileBtn.className = 'action-btn file-btn';
+      fileBtn.title = '复制为文件，可在资源管理器中粘贴';
+      fileBtn.textContent = '📄';
+      fileBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await App.copyImagesAsFiles([item.id]);
+      });
+      actions.appendChild(fileBtn);
+
+      const ocrBtn = document.createElement('button');
+      ocrBtn.className = 'action-btn ocr-btn';
+      ocrBtn.title = '识别图片文字并复制';
+      ocrBtn.textContent = '文';
+      ocrBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await App.recognizeImageText(item.id);
+      });
+      actions.appendChild(ocrBtn);
+    }
 
     // 置顶按钮
     const pinBtn = document.createElement('button');

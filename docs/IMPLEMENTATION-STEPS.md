@@ -109,16 +109,21 @@
 
 ---
 
-## Phase 7：收尾 + 打包
+## Phase 7：功能增强 + 收尾 + 打包
 
-**状态**：⏳ 等待开始
+**状态**：🚧 进行中
 
 | 步骤 | 内容 | 涉及文件 | 状态 | 完成时间 |
 |------|------|----------|------|----------|
-| 7.1 | 自动清理机制（启动时 + 每小时） | `src/main/database.js` | [ ] | |
-| 7.2 | 空状态/错误状态/加载状态 | `src/renderer/` | [ ] | |
-| 7.3 | 动画细节（复制反馈/过渡） | `src/renderer/styles.css` | [ ] | |
-| 7.4 | 配置 electron-builder.yml + 生成安装程序 | `electron-builder.yml` | [ ] | |
-| 7.5 | 按验证清单逐项测试 | 全部 | [ ] | |
+| 7.1 | 全部/文字/图片类型筛选 | `database.js`, `ipc-handlers.js`, `src/renderer/` | [x] | 2026-08-03 |
+| 7.2 | 截图库多选、批量删除和批量复制 | `database.js`, `ipc-handlers.js`, `src/renderer/` | [x] | 2026-08-03 |
+| 7.3 | 图片复制为 Windows 文件 | `file-clipboard.js`, `ipc-handlers.js`, `src/renderer/` | [x] | 2026-08-03 |
+| 7.4 | 截图库列表/网格排布切换 | `database.js`, `src/renderer/` | [x] | 2026-08-03 |
+| 7.5 | 单张图片离线识别文字并复制 | `ocr-service.js`, `ipc-handlers.js`, `src/renderer/` | [x] | 2026-08-03 |
+| 7.6 | 自动清理机制（启动时 + 每小时） | `src/main/database.js` | [ ] | |
+| 7.7 | 空状态/错误状态/加载状态 | `src/renderer/` | [ ] | |
+| 7.8 | 动画细节（复制反馈/过渡） | `src/renderer/styles.css` | [ ] | |
+| 7.9 | 配置 electron-builder.yml + 生成安装程序 | `electron-builder.yml` | [x] | 2026-08-03 |
+| 7.10 | 按验证清单逐项测试 | 全部 | [ ] | |
 
 **验证标准**：在 Windows 11 上安装→运行→所有功能正常。

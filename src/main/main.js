@@ -25,8 +25,24 @@ const trayModule = require('./tray');
 const hotkeyModule = require('./hotkey');
 const autoStart = require('./auto-start');
 const ipcHandlers = require('./ipc-handlers');
+const ocrService = require('./ocr-service');
 
 let mainWindow = null;
+const isOcrSmokeTest = process.argv.includes('--ocr-smoke-test');
+
+async function runOcrSmokeTest() {
+  const fs = require('fs');
+  const imagePath = path.join(app.getAppPath(), 'assets', 'icon.png');
+  const imageBuffer = fs.readFileSync(imagePath);
+
+  try {
+    await ocrService.recognizeText(imageBuffer);
+  } catch (error) {
+    if (error.code !== 'OCR_NO_TEXT') throw error;
+  } finally {
+    await ocrService.terminate();
+  }
+}
 
 // ============================================================
 //  窗口管理
@@ -134,6 +150,17 @@ function toggleWindow() {
 // ============================================================
 
 app.whenReady().then(async () => {
+  if (isOcrSmokeTest) {
+    try {
+      await runOcrSmokeTest();
+      app.exit(0);
+    } catch (error) {
+      console.error('OCR 成品自检失败:', error);
+      app.exit(1);
+    }
+    return;
+  }
+
   Menu.setApplicationMenu(null);
 
   try {
@@ -177,6 +204,7 @@ app.on('before-quit', () => {
   clipboardMonitor.stopMonitoring();
   hotkeyModule.unregisterAll();
   trayModule.destroyTray();
+  void ocrService.terminate();
   database.closeDatabase();
   console.log('✅ 应用已安全退出');
 });

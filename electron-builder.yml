@@ -14,8 +14,17 @@ files:
   - "!node_modules/**/*.{md,ts,map,license}"
   - "!node_modules/**/docs/**"
   - "!node_modules/**/test/**"
+  - "!node_modules/@tesseract.js-data/*/4.0.0/**/*"
+  - "!node_modules/tesseract.js-core/*.wasm.js"
 
 asar: true
+asarUnpack:
+  - node_modules/tesseract.js/**/*
+  - node_modules/tesseract.js-core/**/*
+  - node_modules/regenerator-runtime/**/*
+  - node_modules/is-url/**/*
+  - node_modules/wasm-feature-detect/**/*
+  - node_modules/bmp-js/**/*
 
 win:
   target:
